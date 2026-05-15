@@ -77,8 +77,8 @@ public class EntryFilter {
         }
 
         try {
-            // Need max(rsiPeriod, bbPeriod) + extra bars for Wilder's warm-up
-            int limit = Math.max(rsiPeriod, bbPeriod) + rsiPeriod + 5;
+            // rsiPeriod bars for seed + rsiPeriod bars for Wilder warm-up + bbPeriod + margin
+            int limit = rsiPeriod * 2 + bbPeriod + 10;
             List<Kline> klines = client.getKlines(symbol, interval, limit);
 
             double rsi = computeRsi(klines);
@@ -125,19 +125,30 @@ public class EntryFilter {
 
     private double computeRsi(List<Kline> klines) {
         int n = klines.size();
-        if (n < rsiPeriod + 1) return 50.0;
+        if (n < rsiPeriod * 2 + 1) return 50.0;
 
-        double avgGain = 0;
-        double avgLoss = 0;
+        // Calcular todos los cambios de precio
+        double[] changes = new double[n - 1];
+        for (int i = 0; i < n - 1; i++) {
+            changes[i] = klines.get(i + 1).getClose() - klines.get(i).getClose();
+        }
 
-        // Seed with first rsiPeriod changes (simple average)
-        for (int i = n - rsiPeriod - 1; i < n - 1; i++) {
-            double change = klines.get(i + 1).getClose() - klines.get(i).getClose();
-            if (change > 0) avgGain += change;
-            else            avgLoss += -change;
+        // Seed: promedio simple de los primeros rsiPeriod cambios
+        double avgGain = 0, avgLoss = 0;
+        for (int i = 0; i < rsiPeriod; i++) {
+            if (changes[i] > 0) avgGain += changes[i];
+            else                avgLoss -= changes[i];
         }
         avgGain /= rsiPeriod;
         avgLoss /= rsiPeriod;
+
+        // Wilder's smoothing: EMA(1/period) para el resto de las barras
+        for (int i = rsiPeriod; i < changes.length; i++) {
+            double gain = changes[i] > 0 ? changes[i] : 0.0;
+            double loss = changes[i] < 0 ? -changes[i] : 0.0;
+            avgGain = (avgGain * (rsiPeriod - 1) + gain) / rsiPeriod;
+            avgLoss = (avgLoss * (rsiPeriod - 1) + loss) / rsiPeriod;
+        }
 
         if (avgLoss == 0) return 100.0;
         double rs = avgGain / avgLoss;
