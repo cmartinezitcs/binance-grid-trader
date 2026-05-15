@@ -236,7 +236,18 @@ public class GridStrategy {
             }
             tracker.updateUnrealizedPnl(upnl);
 
-            // Refrescar RSI+BB (el cache interno limita las llamadas a la API)
+            // Refrescar tendencia y RSI+BB (el cache interno limita las llamadas a la API)
+            // Se llama aquí para reducir la latencia de detección: en lugar de esperar
+            // hasta el próximo checkRangeAndRebalance (hasta 300s), se actualiza cada
+            // orderCheckInterval segundos (por defecto 15s).
+            TrendFilter.Trend prevTrend = trendFilter.getTrend();
+            TrendFilter.Trend nowTrend  = trendFilter.refresh(currentPrice);
+            if (prevTrend != nowTrend) {
+                log.info("[TrendFilter] Cambio detectado en checkOrdersFills: {} → {}", prevTrend.label(), nowTrend.label());
+                if (prevTrend == TrendFilter.Trend.BEARISH && nowTrend != TrendFilter.Trend.BEARISH) {
+                    resumeSuspendedBuys();
+                }
+            }
             entryFilter.evaluate(currentPrice);
 
             for (GridLevel level : levels) {
