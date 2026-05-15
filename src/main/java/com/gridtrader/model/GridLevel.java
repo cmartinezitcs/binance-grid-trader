@@ -18,6 +18,7 @@ public class GridLevel {
     private double quantity;
     private Status status;
     private GridOrder activeOrder;
+    private GridOrder lastBuyOrder;
     private double totalBought;
     private double totalSold;
     private int completedCycles;
@@ -57,6 +58,9 @@ public class GridLevel {
 
     public GridOrder getActiveOrder()                   { return activeOrder; }
     public void setActiveOrder(GridOrder activeOrder)   { this.activeOrder = activeOrder; }
+
+    public GridOrder getLastBuyOrder()                  { return lastBuyOrder; }
+    public void setLastBuyOrder(GridOrder order)        { this.lastBuyOrder = order; }
 
     public double getTotalBought()                  { return totalBought; }
     public void setTotalBought(double totalBought)  { this.totalBought = totalBought; }

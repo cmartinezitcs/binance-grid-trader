@@ -280,6 +280,7 @@ public class GridStrategy {
                 level.getIndex(), filledOrder.getPrice(), filledOrder.getExecutedQty());
 
             tracker.recordBuy(filledOrder);
+            level.setLastBuyOrder(filledOrder);
             level.setStatus(GridLevel.Status.BOUGHT);
             level.setActiveOrder(null);
 
@@ -299,8 +300,8 @@ public class GridStrategy {
             // Buscar la compra emparejada (nivel inferior)
             int buyLevelIdx = level.getIndex() - 1;
             GridOrder pairedBuy = null;
-            if (buyLevelIdx >= 0 && levels.get(buyLevelIdx).getActiveOrder() != null) {
-                pairedBuy = levels.get(buyLevelIdx).getActiveOrder();
+            if (buyLevelIdx >= 0) {
+                pairedBuy = levels.get(buyLevelIdx).getLastBuyOrder();
             }
 
             if (pairedBuy != null) {
