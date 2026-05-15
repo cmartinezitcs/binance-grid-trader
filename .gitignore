@@ -1,0 +1,25 @@
+target/
+*.class
+*.jar
+
+# Estado del bot (puede contener info de órdenes)
+grid-state.json
+
+# Configuración con credenciales — NUNCA subir a git (solo el archivo raiz)
+/config.properties
+
+# Logs
+logs/
+*.log
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.eclipse/
+*.project
+*.classpath
+
+# OS
+.DS_Store
+Thumbs.db
