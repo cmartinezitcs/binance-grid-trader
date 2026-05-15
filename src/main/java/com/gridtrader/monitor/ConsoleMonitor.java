@@ -18,7 +18,7 @@ public class ConsoleMonitor {
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     // Ancho interior (entre los dos ║). Todas las filas deben tener exactamente W chars.
-    private static final int W = 64;
+    private static final int W = 80;
 
     private final AppConfig           config;
     private final PositionTracker     tracker;
@@ -131,7 +131,8 @@ public class ConsoleMonitor {
         sb.append(sep()).append('\n');
 
         // ── Tabla de niveles ─────────────────────────────────────────────────
-        sb.append(row(f("  %-5s  %-14s  %-15s  %-12s  ", "#", "Precio", "Estado", "Orden"))).append('\n');
+        sb.append(row(f("  %-4s  %14s  %-15s  %9s  %-8s  %-16s  ",
+                "#", "Precio", "Estado", "Cantidad", "Dist%", "Detalle"))).append('\n');
         sb.append(thin()).append('\n');
 
         double levelStep = (rangeManager.getUpperBound() - rangeManager.getLowerBound())
@@ -142,17 +143,19 @@ public class ConsoleMonitor {
         int to   = Math.max(0, from - maxDisplay + 1);
 
         for (int i = from; i >= to; i--) {
-            GridLevel lvl   = levels.get(i);
-            boolean current = Math.abs(lvl.getPrice() - currentPrice) <= levelStep * 0.5;
-            String  arrow   = current ? " ►" : "  ";
-            String  orderId = lvl.getActiveOrder() != null
-                    ? "#" + (lvl.getActiveOrder().getOrderId() % 100_000) : "";
+            GridLevel lvl    = levels.get(i);
+            boolean current  = Math.abs(lvl.getPrice() - currentPrice) <= levelStep * 0.5;
+            String  arrow    = current ? " ►" : "  ";
+            double  distPct  = (lvl.getPrice() - currentPrice) / currentPrice * 100.0;
+            String  detail   = levelDetail(lvl, currentPrice, levels);
 
-            sb.append(row(f("  [%2d]  %14.4f  %-15s  %-12s%s",
+            sb.append(row(f("  [%2d]  %14.4f  %-15s  %9.5f  %+7.2f%%  %-16s%2s",
                     lvl.getIndex(),
                     lvl.getPrice(),
                     statusLabel(lvl),
-                    orderId,
+                    lvl.getQuantity(),
+                    distPct,
+                    detail,
                     arrow))).append('\n');
         }
 
@@ -201,11 +204,34 @@ public class ConsoleMonitor {
 
     private String statusLabel(GridLevel level) {
         return switch (level.getStatus()) {
-            case IDLE        -> "- sin orden    ";
-            case BUY_PLACED  -> "v esperando    ";
-            case BOUGHT      -> "* comprado     ";
-            case SELL_PLACED -> "^ vendiendo    ";
-            case SOLD        -> "* vendido      ";
+            case IDLE        -> "- sin orden";
+            case BUY_PLACED  -> "v esperando";
+            case BOUGHT      -> "* comprado";
+            case SELL_PLACED -> "^ vendiendo";
+            case SOLD        -> "* vendido";
+        };
+    }
+
+    private String levelDetail(GridLevel lvl, double currentPrice, List<GridLevel> levels) {
+        return switch (lvl.getStatus()) {
+            case BOUGHT -> {
+                double upnl = (currentPrice - lvl.getPrice()) * lvl.getQuantity();
+                yield f("upnl %+.2f USDT", upnl);
+            }
+            case SELL_PLACED -> {
+                int buyIdx = lvl.getIndex() - 1;
+                if (buyIdx >= 0 && lvl.getActiveOrder() != null) {
+                    GridLevel buyLvl = levels.get(buyIdx);
+                    double buyPrice = buyLvl.getLastBuyOrder() != null
+                            ? buyLvl.getLastBuyOrder().getPrice()
+                            : buyLvl.getPrice();
+                    double profit = (lvl.getActiveOrder().getPrice() - buyPrice) * lvl.getQuantity();
+                    yield f("prof %+.2f USDT", profit);
+                }
+                yield "";
+            }
+            case SOLD -> f("ciclos: %d", lvl.getCompletedCycles());
+            default -> "";
         };
     }
 
