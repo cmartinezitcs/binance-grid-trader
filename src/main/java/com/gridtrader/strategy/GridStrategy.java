@@ -383,6 +383,11 @@ public class GridStrategy {
 
     /** Reactiva órdenes de compra en niveles que quedaron IDLE por el filtro de tendencia. */
     private void resumeSuspendedBuys() {
+        if (!entryFilter.isGoodEntry()) {
+            log.info("[EntryFilter] Reactivación diferida — señal DESFAVORABLE (RSI={:.1f}, BB%B={:.3f})",
+                entryFilter.getRsi(), entryFilter.getBbPercent());
+            return;
+        }
         int resumed = 0;
         for (GridLevel level : levels) {
             if (level.getStatus() == GridLevel.Status.IDLE
@@ -418,13 +423,22 @@ public class GridStrategy {
             levels.add(new GridLevel(i, newPrices[i], qty));
         }
 
-        // 4. Colocar órdenes de compra de nuevo
+        // 4. Colocar órdenes de compra de nuevo (respetando filtros de tendencia y entrada)
         int placed = 0;
         for (GridLevel level : levels) {
             if (level.getPrice() < currentPrice && placed < config.getMaxActiveOrders()) {
-                placeBuyOrder(level);
-                placed++;
+                if (trendFilter.allowBuy() && entryFilter.isGoodEntry()) {
+                    placeBuyOrder(level);
+                    placed++;
+                }
             }
+        }
+
+        if (!trendFilter.allowBuy()) {
+            log.info("[TrendFilter] Rebalanceo sin compras — tendencia BAJISTA");
+        } else if (!entryFilter.isGoodEntry()) {
+            log.info("[EntryFilter] Rebalanceo sin compras — señal DESFAVORABLE (RSI={:.1f}, BB%B={:.3f})",
+                entryFilter.getRsi(), entryFilter.getBbPercent());
         }
 
         log.info("Rebalanceo completo. Nuevo rango: [{:.4f} - {:.4f}] | {} órdenes colocadas",
