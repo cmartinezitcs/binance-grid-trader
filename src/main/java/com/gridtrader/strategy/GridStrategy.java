@@ -236,6 +236,9 @@ public class GridStrategy {
             }
             tracker.updateUnrealizedPnl(upnl);
 
+            // Refrescar RSI+BB (el cache interno limita las llamadas a la API)
+            entryFilter.evaluate(currentPrice);
+
             for (GridLevel level : levels) {
                 if (level.getActiveOrder() == null) continue;
 
